@@ -756,7 +756,20 @@
   });
   window.addEventListener('keyup', e => setKey(e.code, false, false));
   window.addEventListener('blur', () => { input.left = input.right = input.attack = false; releaseAttack(); });
-  document.addEventListener('visibilitychange', () => { paused = document.hidden; lastTime = performance.now(); });
+
+  function syncPauseState() {
+    paused = document.hidden || ui.help.open || ui.loadout.open;
+    lastTime = performance.now();
+    if (!paused) return;
+    input.left = false;
+    input.right = false;
+    input.attack = false;
+    input.jumpQueued = false;
+    input.dashQueued = false;
+    if (player.attack?.kind === 'bowCharge') player.attack = null;
+  }
+
+  document.addEventListener('visibilitychange', syncPauseState);
 
   function bindHold(id, onDown, onUp = () => {}) {
     const el = document.querySelector(id);
@@ -771,8 +784,11 @@
   bindHold('#attackButton', () => { input.attack = true; startAttack(); }, releaseAttack);
   bindHold('#switchButtonTouch', () => switchWeapon());
 
-  ui.helpButton.addEventListener('click', () => ui.help.showModal());
-  ui.loadoutButton.addEventListener('click', () => { draftLoadout = [...selectedLoadout]; buildLoadoutControls(); ui.loadout.showModal(); });
+  ui.helpButton.addEventListener('click', () => { ui.help.showModal(); syncPauseState(); });
+  ui.loadoutButton.addEventListener('click', () => {
+    draftLoadout = [...selectedLoadout]; buildLoadoutControls(); ui.loadout.showModal(); syncPauseState();
+  });
+  [ui.help, ui.loadout].forEach(dialog => dialog.addEventListener('close', syncPauseState));
   ui.applyLoadout.addEventListener('click', () => {
     selectedLoadout = [...draftLoadout]; activeSlot = 0; player.attack = null; player.switchState = null; updateHud();
     showNotice(`${WEAPONS[selectedLoadout[0]].name}＋${WEAPONS[selectedLoadout[1]].name}`, 1);
