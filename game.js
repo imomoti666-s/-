@@ -46,18 +46,16 @@
     wrap: [535, 325, 275, 280],
     belly: [795, 340, 245, 245],
     pelvis: [1015, 340, 330, 250],
-    upperNear: [140, 590, 220, 165],
-    foreNear: [325, 590, 200, 165],
-    handNear: [505, 590, 170, 165],
-    upperFar: [680, 590, 255, 165],
-    foreFar: [925, 590, 210, 165],
-    handFar: [1115, 590, 165, 165],
-    thighNear: [150, 735, 205, 235],
-    shinNear: [360, 730, 180, 245],
-    footNear: [505, 790, 205, 190],
-    thighFar: [710, 735, 215, 235],
-    shinFar: [920, 730, 190, 245],
-    footFar: [1080, 790, 215, 190],
+    upperNear: [140, 590, 204, 114],
+    foreNear: [325, 590, 184, 134],
+    handNear: [505, 590, 122, 142],
+    upperFar: [680, 590, 179, 113],
+    foreFar: [925, 590, 164, 96],
+    handFar: [1115, 590, 107, 93],
+    thighNear: [150, 735, 137, 174],
+    lowerNear: [505, 790, 136, 118],
+    thighFar: [710, 735, 140, 176],
+    lowerFar: [1080, 790, 140, 127],
     tailBase: [325, 970, 320, 155],
     tailMid: [620, 970, 270, 155],
     tailTip: [875, 970, 235, 150],
@@ -140,7 +138,7 @@
     attack: null, switchState: null,
     dashTimer: 0, dashCooldown: 0, invulnerable: 0,
     hurtTimer: 0, landing: 0, walkPhase: 0,
-    combo: 0, comboWindow: 0, tailRot: 0, tailVel: 0,
+    combo: 0, comboWindow: 0, tailRot: 0, tailVel: 0, animTime: 0,
   };
 
   let enemies = [];
@@ -228,8 +226,10 @@
       player.combo = player.comboWindow > 0 ? (player.combo + 1) % 4 : 0;
       player.comboWindow = .48;
       player.attack = { kind: 'dagger', t: 0, duration: .25 + player.combo * .018, combo: player.combo, fired: false, hit: new Set() };
+      if (player.grounded) player.vx += player.facing * 48;
     } else {
       player.attack = { kind: 'axe', t: 0, duration: .78, fired: false, hit: new Set() };
+      if (player.grounded) player.vx += player.facing * 20;
     }
   }
 
@@ -331,6 +331,7 @@
   }
 
   function updatePlayer(dt) {
+    player.animTime += dt;
     player.dashCooldown = Math.max(0, player.dashCooldown - dt);
     player.invulnerable = Math.max(0, player.invulnerable - dt);
     player.hurtTimer = Math.max(0, player.hurtTimer - dt);
@@ -523,31 +524,128 @@
   }
 
   function drawLimb(rect, x, y, length, thickness, angle, far = false) {
-    drawPart(images.body, rect, x, y, length, thickness, angle, .08, .5, far ? .76 : 1);
-    // The generated pieces include transparent joint padding. A deliberately
-    // shorter bone interval lets adjacent textures overlap and hides paper-doll seams.
-    return { x: x + Math.cos(angle) * length * .72, y: y + Math.sin(angle) * length * .72 };
+    drawPart(images.body, rect, x, y, length, thickness, angle, .06, .5, far ? .76 : 1);
+    return { x: x + Math.cos(angle) * length * .78, y: y + Math.sin(angle) * length * .78 };
+  }
+
+  function drawLeg(rect, x, y, width, length, angle, far = false) {
+    drawPart(images.body, rect, x, y, width, length, angle, .5, .06, far ? .76 : 1);
+    return {
+      x: x - Math.sin(angle) * length * .76,
+      y: y + Math.cos(angle) * length * .76,
+    };
+  }
+
+  function limbEnd(x, y, length, angle) {
+    return { x: x + Math.cos(angle) * length * .78, y: y + Math.sin(angle) * length * .78 };
+  }
+
+  function solveArm(shoulder, target, upperLength, foreLength, bend = 1) {
+    const dx = target.x - shoulder.x;
+    const dy = target.y - shoulder.y;
+    const distance = clamp(Math.hypot(dx, dy), 8, upperLength + foreLength - .01);
+    const base = Math.atan2(dy, dx);
+    const shoulderOffset = Math.acos(clamp(
+      (upperLength * upperLength + distance * distance - foreLength * foreLength) / (2 * upperLength * distance),
+      -1, 1,
+    ));
+    const upper = base - shoulderOffset * bend;
+    const elbow = { x: shoulder.x + Math.cos(upper) * upperLength, y: shoulder.y + Math.sin(upper) * upperLength };
+    return { upper, fore: Math.atan2(target.y - elbow.y, target.x - elbow.x) };
   }
 
   function attackPose() {
     const a = player.attack;
-    let near = 1.08, far = 1.55, torso = 0, weaponRot = .15, pull = 0;
+    const locomotion = a ? 0 : clamp(Math.abs(player.vx) / 305, 0, 1);
+    const step = Math.sin(player.walkPhase);
+    const pose = {
+      upperNear: 1.08 - step * .15 * locomotion,
+      foreNear: .94 - step * .1 * locomotion,
+      upperFar: 1.56 + step * .18 * locomotion,
+      foreFar: 1.4 + step * .12 * locomotion,
+      torso: 0, hip: 0, head: 0,
+      rootX: 0, rootY: 0, shoulderX: 0, shoulderY: 0,
+      legNear: 0, legFar: 0, shinNear: 0, shinFar: 0,
+      pull: 0,
+    };
     if (player.switchState) {
       const p = Math.sin(clamp(player.switchState.t / player.switchState.duration, 0, 1) * Math.PI);
-      near = lerp(1.08, 2.35, p); far = lerp(1.55, .65, p); torso = -.04 * p;
+      pose.upperNear = lerp(1.08, 2.2, p);
+      pose.foreNear = lerp(.94, 1.82, p);
+      pose.upperFar = lerp(1.56, .72, p);
+      pose.foreFar = lerp(1.4, .48, p);
+      pose.torso = -.08 * p;
+      pose.hip = .04 * p;
+      pose.rootY = 3 * p;
     } else if (a?.kind === 'dagger') {
-      const p = easeOutCubic(a.t / a.duration);
-      near = lerp(-1.62, .62, p); far = lerp(1.15, .25, p); torso = lerp(-.1, .13, p); weaponRot = near;
+      const p = clamp(a.t / a.duration, 0, 1);
+      const wind = easeInOut(clamp(p / .22, 0, 1));
+      const strike = easeOutCubic(clamp((p - .22) / .78, 0, 1));
+      const action = Math.sin(p * Math.PI);
+      const combo = a.combo % 4;
+      const from = combo === 1 ? .55 : combo === 2 ? -.35 : -1.55;
+      const to = combo === 1 ? -1.22 : combo === 2 ? .02 : .48;
+      pose.upperNear = p < .22 ? lerp(1.08, from, wind) : lerp(from, to, strike);
+      pose.foreNear = p < .22 ? lerp(.94, from + .22, wind) : lerp(from + .22, to - .08, strike);
+      pose.upperFar = lerp(1.42, .28, action);
+      pose.foreFar = lerp(1.26, .14, action);
+      pose.torso = p < .22 ? lerp(0, -.15, wind) : lerp(-.15, .2, strike);
+      pose.hip = -pose.torso * .48;
+      pose.head = -pose.torso * .22;
+      pose.rootX = action * (combo === 2 ? 34 : 25);
+      pose.rootY = action * 5;
+      pose.shoulderX = action * 12;
+      pose.legNear = -action * .24;
+      pose.legFar = action * .2;
+      pose.shinNear = action * .1;
+      pose.shinFar = -action * .08;
     } else if (a?.kind === 'axe') {
       const p = clamp(a.t / a.duration, 0, 1);
-      const swing = p < .43 ? lerp(1.3, -2.18, easeInOut(p / .43)) : lerp(-2.18, .7, easeInOut((p - .43) / .57));
-      near = swing; far = swing + .12; torso = p < .43 ? lerp(0, -.16, p / .43) : lerp(-.16, .22, (p - .43) / .57); weaponRot = swing;
+      const wind = easeInOut(clamp(p / .43, 0, 1));
+      const strike = easeOutCubic(clamp((p - .43) / .57, 0, 1));
+      const swing = p < .43 ? lerp(1.08, -1.78, wind) : lerp(-1.78, .72, strike);
+      const action = Math.sin(p * Math.PI);
+      pose.upperNear = swing;
+      pose.foreNear = swing + (p < .43 ? .22 : -.12);
+      pose.upperFar = swing + .18;
+      pose.foreFar = swing + .3;
+      pose.torso = p < .43 ? lerp(0, -.22, wind) : lerp(-.22, .27, strike);
+      pose.hip = -pose.torso * .55;
+      pose.head = -pose.torso * .3;
+      pose.rootX = p < .43 ? -8 * wind : lerp(-8, 38, strike);
+      pose.rootY = action * 9;
+      pose.shoulderX = action * 9;
+      pose.shoulderY = -action * 4;
+      pose.legNear = -action * .28;
+      pose.legFar = action * .25;
+      pose.shinNear = action * .12;
+      pose.shinFar = -action * .1;
     } else if (a?.kind === 'bowCharge') {
-      pull = a.charge; near = -.12; far = lerp(.05, 2.85, pull); torso = -.045;
+      pose.pull = a.charge;
+      pose.upperNear = -.12;
+      pose.foreNear = .02;
+      pose.upperFar = lerp(1.46, 2.78, pose.pull);
+      pose.foreFar = lerp(1.3, .12, pose.pull);
+      pose.torso = -.06 - pose.pull * .06;
+      pose.hip = .05 + pose.pull * .03;
+      pose.head = .04 * pose.pull;
+      pose.rootX = -5 * pose.pull;
+      pose.legNear = -.14;
+      pose.legFar = .12;
     } else if (a?.kind === 'bowRelease') {
-      const p = easeOutCubic(a.t / a.duration); near = -.12; far = lerp(2.85, .35, p); pull = 1 - p; torso = -.045 * (1 - p);
+      const p = easeOutCubic(a.t / a.duration);
+      pose.pull = 1 - p;
+      pose.upperNear = lerp(-.12, .18, p);
+      pose.foreNear = lerp(.02, .2, p);
+      pose.upperFar = lerp(2.78, .48, p);
+      pose.foreFar = lerp(.12, .72, p);
+      pose.torso = lerp(-.12, .08, p);
+      pose.hip = -pose.torso * .5;
+      pose.rootX = -8 * (1 - p);
+      pose.legNear = -.14 * (1 - p);
+      pose.legFar = .12 * (1 - p);
     }
-    return { near, far, torso, weaponRot, pull };
+    return pose;
   }
 
   function drawInactiveWeapon(weapon) {
@@ -560,8 +658,9 @@
     const speed = clamp(Math.abs(player.vx) / 305, 0, 1);
     const phase = player.walkPhase;
     const air = player.grounded ? 0 : 1;
-    const stride = Math.sin(phase) * .62 * speed;
-    const bob = player.grounded ? Math.abs(Math.sin(phase)) * 4 * speed : 0;
+    const stride = Math.sin(phase) * .52 * speed;
+    const breath = player.grounded ? Math.sin(player.animTime * 2.35) : 0;
+    const bob = player.grounded ? Math.abs(Math.sin(phase)) * 4 * speed + breath * .7 : 0;
     const squash = player.landing;
     const pose = attackPose();
     const hurtLean = player.hurtTimer > 0 ? -player.facing * .13 : 0;
@@ -571,68 +670,83 @@
     ctx.save();
     ctx.translate(screenX, screenY + bob);
     ctx.scale(player.facing, 1);
+    ctx.translate(pose.rootX, pose.rootY);
     ctx.globalAlpha = blink ? .48 : 1;
     ctx.scale(1 + squash * .09, 1 - squash * .12);
 
     // Tail: three delayed segments make the heavy body feel balanced rather than pasted down.
-    const tailA = player.tailRot + Math.sin(phase * .45) * .035 * speed;
-    drawPart(images.body, BODY.tailBase, -23, -119, 126, 53, tailA, .9, .5, .9);
-    drawPart(images.body, BODY.tailMid, -105, -117, 101, 46, tailA * 1.35 + .05, .9, .5, .86);
-    drawPart(images.body, BODY.tailTip, -169, -111, 79, 40, tailA * 1.7 + .1, .9, .5, .82);
+    const tailA = player.tailRot + Math.sin(player.animTime * 1.7) * .025 + Math.sin(phase * .45) * .035 * speed - pose.torso * .42;
+    // These atlas entries are alternate complete tails, not three chain links.
+    // Drawing all of them created the three-pronged tail visible during attacks.
+    drawPart(images.body, BODY.tailBase, -21, -119, 188, 68, tailA, .91, .5, .9);
 
     // Far leg.
-    const hipFar = { x: -17, y: -98 };
-    const farThighAngle = air ? -.3 : -stride;
-    const kneeFar = drawLimb(BODY.thighFar, hipFar.x, hipFar.y, 70, 86, Math.PI / 2 + farThighAngle, true);
-    const ankleFar = drawLimb(BODY.shinFar, kneeFar.x, kneeFar.y, 58, 68, Math.PI / 2 + (air ? -.5 : stride * .7), true);
-    drawPart(images.body, BODY.footFar, ankleFar.x + 8, ankleFar.y, 64, 42, air ? -.25 : 0, .35, .6, .76);
+    const hipFar = { x: -18, y: -99 };
+    const farThighAngle = air ? .34 : stride * .45 + pose.legFar;
+    const kneeFar = drawLeg(BODY.thighFar, hipFar.x, hipFar.y, 72, 64, farThighAngle, true);
+    drawLeg(BODY.lowerFar, kneeFar.x, kneeFar.y, 60, 57, air ? -.22 : stride * .12 + pose.shinFar, true);
 
     // Inactive weapon sits behind the body and remains visible during switching.
     drawInactiveWeapon(selectedLoadout[1 - activeSlot]);
 
+    const weapon = currentWeapon();
+    const shoulderNear = { x: 17 + pose.shoulderX, y: -190 + pose.shoulderY };
+    const plannedElbowNear = limbEnd(shoulderNear.x, shoulderNear.y, 71, pose.upperNear);
+    const plannedHandNear = limbEnd(plannedElbowNear.x, plannedElbowNear.y, 60, pose.foreNear);
+
     // Far arm.
-    const shoulderFar = { x: 0, y: -187 };
-    const elbowFar = drawLimb(BODY.upperFar, shoulderFar.x, shoulderFar.y, 62, 43, pose.far, true);
-    const farForeAngle = currentWeapon() === 'bow' && player.attack ? pose.far : pose.far - .18;
-    const handFar = drawLimb(BODY.foreFar, elbowFar.x, elbowFar.y, 56, 38, farForeAngle, true);
-    drawPart(images.body, BODY.handFar, handFar.x, handFar.y, 38, 34, farForeAngle, .28, .5, .76);
+    const shoulderFar = { x: -2 + pose.shoulderX * .35, y: -187 + pose.shoulderY };
+    let upperFar = pose.upperFar;
+    let foreFar = pose.foreFar;
+    if (player.attack?.kind === 'axe') {
+      const grip = {
+        x: plannedHandNear.x - Math.cos(pose.foreNear) * 34,
+        y: plannedHandNear.y - Math.sin(pose.foreNear) * 34,
+      };
+      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * .78, 59 * .78, 1));
+    } else if (player.attack?.kind === 'bowCharge' || player.attack?.kind === 'bowRelease') {
+      const grip = {
+        x: plannedHandNear.x - lerp(28, 64, pose.pull),
+        y: plannedHandNear.y - lerp(-5, 3, pose.pull),
+      };
+      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * .78, 59 * .78, 1));
+    }
+    const elbowFar = drawLimb(BODY.upperFar, shoulderFar.x, shoulderFar.y, 68, 39, upperFar, true);
+    const handFar = drawLimb(BODY.foreFar, elbowFar.x, elbowFar.y, 59, 35, foreFar, true);
+    drawPart(images.body, BODY.handFar, handFar.x, handFar.y, 36, 32, foreFar, .2, .5, .76);
 
     // Pelvis and layered torso.
-    ctx.save(); ctx.translate(0, -110); ctx.rotate(bodyLean);
-    drawPart(images.body, BODY.pelvis, 0, 6, 124, 88, 0, .5, .52);
+    drawPart(images.body, BODY.pelvis, 0, -104, 124, 88, pose.hip, .5, .52);
+    ctx.save(); ctx.translate(pose.shoulderX * .18, -110); ctx.rotate(bodyLean);
     drawPart(images.body, BODY.vest, -7, -68, 116, 136, -.03, .48, .55);
-    drawPart(images.body, BODY.belly, 24, -43, 104, 111, .02, .48, .52);
+    drawPart(images.body, BODY.belly, 24, -43 + breath * .55, 104 + breath * .25, 111 + breath * .35, .02, .48, .52);
     drawPart(images.body, BODY.wrap, 9, -78, 118, 122, .015, .48, .52, .96);
-    drawPart(images.body, BODY.head, 21, -146, 137, 112, -.025 - bodyLean * .35, .42, .68);
+    drawPart(images.body, BODY.head, 20, -145, 130, 106, -.025 - bodyLean * .42 + pose.head, .42, .68);
     ctx.restore();
 
-    // Near leg, intentionally not phase-locked to the torso bob.
-    const hipNear = { x: 17, y: -98 };
-    const nearThighAngle = air ? .46 : stride;
-    const kneeNear = drawLimb(BODY.thighNear, hipNear.x, hipNear.y, 72, 88, Math.PI / 2 + nearThighAngle);
-    const ankleNear = drawLimb(BODY.shinNear, kneeNear.x, kneeNear.y, 59, 70, Math.PI / 2 + (air ? -.28 : -stride * .7));
-    drawPart(images.body, BODY.footNear, ankleNear.x + 9, ankleNear.y, 66, 43, air ? .12 : 0, .35, .6);
+    // Each lower-leg image already contains the ankle and paw. Drawing a third
+    // "foot" segment was the source of the visibly detached, duplicated legs.
+    const hipNear = { x: 18, y: -99 };
+    const nearThighAngle = air ? -.42 : -stride * .45 + pose.legNear;
+    const kneeNear = drawLeg(BODY.thighNear, hipNear.x, hipNear.y, 74, 64, nearThighAngle);
+    drawLeg(BODY.lowerNear, kneeNear.x, kneeNear.y, 62, 56, air ? .18 : -stride * .12 + pose.shinNear);
 
     // Near arm and held weapon.
-    const shoulderNear = { x: 17, y: -190 };
-    const elbowNear = drawLimb(BODY.upperNear, shoulderNear.x, shoulderNear.y, 63, 44, pose.near);
-    let foreAngle = pose.near - .16;
-    if (currentWeapon() === 'bow' && player.attack) foreAngle = pose.near;
-    const handNear = drawLimb(BODY.foreNear, elbowNear.x, elbowNear.y, 57, 39, foreAngle);
-    drawPart(images.body, BODY.handNear, handNear.x, handNear.y, 39, 35, foreAngle, .28, .5);
+    const elbowNear = drawLimb(BODY.upperNear, shoulderNear.x, shoulderNear.y, 71, 40, pose.upperNear);
+    const handNear = drawLimb(BODY.foreNear, elbowNear.x, elbowNear.y, 60, 38, pose.foreNear);
+    drawPart(images.body, BODY.handNear, handNear.x, handNear.y, 37, 34, pose.foreNear, .2, .5);
 
-    const weapon = currentWeapon();
     if (weapon === 'dagger') {
-      drawPart(images.weapons, GEAR.dagger, handNear.x + 8, handNear.y, 108, 45, foreAngle, .13, .5);
+      drawPart(images.weapons, GEAR.dagger, handNear.x + 7, handNear.y, 108, 45, pose.foreNear, .13, .5);
     } else if (weapon === 'axe') {
-      drawPart(images.weapons, GEAR.axe, handNear.x + 8, handNear.y, 178, 91, foreAngle, .79, .5, 1, true);
+      drawPart(images.weapons, GEAR.axe, handNear.x + 8, handNear.y, 178, 91, pose.foreNear, .79, .5, 1, true);
     } else {
-      const bowX = player.attack ? 75 : handNear.x + 12;
-      const bowY = player.attack ? -165 : handNear.y;
+      const bowX = handNear.x + 10;
+      const bowY = handNear.y;
       const bowRot = player.attack ? 0 : .28;
       drawPart(images.weapons, GEAR.bow, bowX, bowY, 49, 154, bowRot, .5, .5);
       if (player.attack?.kind === 'bowCharge') {
-        drawPart(images.weapons, GEAR.arrow, 28 - pose.pull * 35, -164, 126, 25, 0, .15, .5);
+        drawPart(images.weapons, GEAR.arrow, lerp(handFar.x, bowX, .42), bowY, 126, 25, 0, .15, .5);
       }
     }
 
