@@ -25,6 +25,8 @@
   const FLOOR = 590;
   const WORLD_W = 2800;
   const PLAYER_SCALE = .62;
+  const ARM_LINK = .72;
+  const LEG_LINK = .70;
 
   const ui = {
     boot: document.querySelector('#bootScreen'),
@@ -43,6 +45,7 @@
     applyLoadout: document.querySelector('#applyLoadout'),
     slots: [document.querySelector('#slot0'), document.querySelector('#slot1')],
     switchWeapon: document.querySelector('#switchWeapon'),
+    landscapeButton: document.querySelector('#landscapeButton'),
   };
 
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -140,6 +143,7 @@
   const input = { left: false, right: false, attack: false, jumpQueued: false, dashQueued: false };
   let started = false;
   let paused = false;
+  let orientationBlocked = false;
   let lastTime = performance.now();
   let cameraX = 0;
   let shake = 0;
@@ -546,19 +550,23 @@
 
   function drawLimb(rect, x, y, length, thickness, angle, far = false) {
     drawPart(images.body, rect, x, y, length, thickness, angle, .06, .5, far ? .76 : 1);
-    return { x: x + Math.cos(angle) * length * .78, y: y + Math.sin(angle) * length * .78 };
+    return { x: x + Math.cos(angle) * length * ARM_LINK, y: y + Math.sin(angle) * length * ARM_LINK };
   }
 
   function drawLeg(rect, x, y, width, length, angle, far = false) {
     drawPart(images.body, rect, x, y, width, length, angle, .5, .06, far ? .76 : 1);
     return {
-      x: x - Math.sin(angle) * length * .76,
-      y: y + Math.cos(angle) * length * .76,
+      x: x - Math.sin(angle) * length * LEG_LINK,
+      y: y + Math.cos(angle) * length * LEG_LINK,
     };
   }
 
   function limbEnd(x, y, length, angle) {
-    return { x: x + Math.cos(angle) * length * .78, y: y + Math.sin(angle) * length * .78 };
+    return { x: x + Math.cos(angle) * length * ARM_LINK, y: y + Math.sin(angle) * length * ARM_LINK };
+  }
+
+  function legEnd(x, y, length, angle) {
+    return { x: x - Math.sin(angle) * length * LEG_LINK, y: y + Math.cos(angle) * length * LEG_LINK };
   }
 
   function solveArm(shoulder, target, upperLength, foreLength, bend = 1) {
@@ -704,8 +712,9 @@
     // Far leg.
     const hipFar = { x: -18, y: -99 };
     const farThighAngle = air ? .34 : stride * .45 + pose.legFar;
-    const kneeFar = drawLeg(BODY.thighFar, hipFar.x, hipFar.y, 72, 64, farThighAngle, true);
+    const kneeFar = legEnd(hipFar.x, hipFar.y, 64, farThighAngle);
     drawLeg(BODY.lowerFar, kneeFar.x, kneeFar.y, 60, 57, air ? -.22 : stride * .12 + pose.shinFar, true);
+    drawLeg(BODY.thighFar, hipFar.x, hipFar.y, 72, 64, farThighAngle, true);
 
     // Inactive weapon sits behind the body and remains visible during switching.
     drawInactiveWeapon(selectedLoadout[1 - activeSlot]);
@@ -724,16 +733,18 @@
         x: plannedHandNear.x - Math.cos(pose.foreNear) * 34,
         y: plannedHandNear.y - Math.sin(pose.foreNear) * 34,
       };
-      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * .78, 59 * .78, 1));
+      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * ARM_LINK, 59 * ARM_LINK, 1));
     } else if (player.attack?.kind === 'bowCharge' || player.attack?.kind === 'bowRelease') {
       const grip = {
         x: plannedHandNear.x - lerp(28, 64, pose.pull),
         y: plannedHandNear.y - lerp(-5, 3, pose.pull),
       };
-      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * .78, 59 * .78, 1));
+      ({ upper: upperFar, fore: foreFar } = solveArm(shoulderFar, grip, 68 * ARM_LINK, 59 * ARM_LINK, 1));
     }
-    const elbowFar = drawLimb(BODY.upperFar, shoulderFar.x, shoulderFar.y, 68, 39, upperFar, true);
-    const handFar = drawLimb(BODY.foreFar, elbowFar.x, elbowFar.y, 59, 35, foreFar, true);
+    const elbowFar = limbEnd(shoulderFar.x, shoulderFar.y, 68, upperFar);
+    const handFar = limbEnd(elbowFar.x, elbowFar.y, 59, foreFar);
+    drawLimb(BODY.foreFar, elbowFar.x, elbowFar.y, 59, 35, foreFar, true);
+    drawLimb(BODY.upperFar, shoulderFar.x, shoulderFar.y, 68, 39, upperFar, true);
     drawPart(images.body, BODY.handFar, handFar.x, handFar.y, 36, 32, foreFar, .2, .5, .76);
 
     // Pelvis and layered torso.
@@ -749,12 +760,15 @@
     // "foot" segment was the source of the visibly detached, duplicated legs.
     const hipNear = { x: 18, y: -99 };
     const nearThighAngle = air ? -.42 : -stride * .45 + pose.legNear;
-    const kneeNear = drawLeg(BODY.thighNear, hipNear.x, hipNear.y, 74, 64, nearThighAngle);
+    const kneeNear = legEnd(hipNear.x, hipNear.y, 64, nearThighAngle);
     drawLeg(BODY.lowerNear, kneeNear.x, kneeNear.y, 62, 56, air ? .18 : -stride * .12 + pose.shinNear);
+    drawLeg(BODY.thighNear, hipNear.x, hipNear.y, 74, 64, nearThighAngle);
 
     // Near arm and held weapon.
-    const elbowNear = drawLimb(BODY.upperNear, shoulderNear.x, shoulderNear.y, 71, 40, pose.upperNear);
-    const handNear = drawLimb(BODY.foreNear, elbowNear.x, elbowNear.y, 60, 38, pose.foreNear);
+    const elbowNear = limbEnd(shoulderNear.x, shoulderNear.y, 71, pose.upperNear);
+    const handNear = limbEnd(elbowNear.x, elbowNear.y, 60, pose.foreNear);
+    drawLimb(BODY.foreNear, elbowNear.x, elbowNear.y, 60, 38, pose.foreNear);
+    drawLimb(BODY.upperNear, shoulderNear.x, shoulderNear.y, 71, 40, pose.upperNear);
     drawPart(images.body, BODY.handNear, handNear.x, handNear.y, 37, 34, pose.foreNear, .2, .5);
 
     if (weapon === 'dagger') {
@@ -908,11 +922,38 @@
       cameraX = clamp(cameraX, 0, Math.max(0, WORLD_W - W));
       render();
     }
+    syncOrientationState();
     lastTime = performance.now();
   });
 
+  function isPortrait() {
+    if (window.matchMedia) return window.matchMedia('(orientation: portrait)').matches;
+    return Number.isFinite(window.innerWidth) && Number.isFinite(window.innerHeight) && window.innerHeight > window.innerWidth;
+  }
+
+  function syncOrientationState() {
+    orientationBlocked = isPortrait();
+    if (orientationBlocked) {
+      input.left = input.right = input.attack = false;
+      input.jumpQueued = input.dashQueued = false;
+      if (player.attack?.kind === 'bowCharge') player.attack = null;
+    }
+    if (started) syncPauseState();
+  }
+
+  async function requestLandscapeMode() {
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    if (coarsePointer && !document.fullscreenElement && document.documentElement?.requestFullscreen) {
+      try { await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (_) {}
+    }
+    try { await window.screen?.orientation?.lock?.('landscape'); } catch (_) {}
+    syncOrientationState();
+  }
+
+  window.addEventListener('orientationchange', syncOrientationState);
+
   function syncPauseState() {
-    paused = document.hidden || ui.help.open || ui.loadout.open;
+    paused = document.hidden || ui.help.open || ui.loadout.open || orientationBlocked;
     lastTime = performance.now();
     if (!paused) return;
     input.left = false;
@@ -937,6 +978,7 @@
   bindHold('#dashButton', () => input.dashQueued = true);
   bindHold('#attackButton', () => { input.attack = true; startAttack(); }, releaseAttack);
   bindHold('#switchButtonTouch', () => switchWeapon());
+  ui.landscapeButton.addEventListener('click', () => { void requestLandscapeMode(); });
 
   ui.helpButton.addEventListener('click', () => { ui.help.showModal(); syncPauseState(); });
   ui.loadoutButton.addEventListener('click', () => {
@@ -950,7 +992,9 @@
   ui.switchWeapon.addEventListener('click', () => switchWeapon());
   ui.slots.forEach((el, i) => el.addEventListener('click', () => switchWeapon(i)));
   ui.start.addEventListener('click', () => {
+    void requestLandscapeMode();
     sfx.init(); started = true; paused = false; ui.boot.classList.add('hidden'); showNotice('訓練開始', 1.1);
+    syncOrientationState();
   });
 
   ui.start.disabled = true;
@@ -966,6 +1010,7 @@
   });
 
   buildLoadoutControls();
+  syncOrientationState();
   updateHud();
   window.__KEMOSURA__ = {
     snapshot: () => ({
