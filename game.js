@@ -2,11 +2,29 @@
   'use strict';
 
   const canvas = document.querySelector('#game');
+  const H = 720;
+  let W = canvas.width;
+
+  function fitCanvasToViewport() {
+    const rect = canvas.getBoundingClientRect?.();
+    if (!rect?.width || !rect?.height) return false;
+    const nextWidth = clampCanvasWidth(Math.round(H * rect.width / rect.height));
+    if (canvas.width === nextWidth && canvas.height === H) {
+      W = nextWidth;
+      return false;
+    }
+    canvas.width = nextWidth;
+    canvas.height = H;
+    W = nextWidth;
+    return true;
+  }
+
+  const clampCanvasWidth = width => Math.max(640, Math.min(2200, width));
+  fitCanvasToViewport();
   const ctx = canvas.getContext('2d', { alpha: false });
-  const W = canvas.width;
-  const H = canvas.height;
   const FLOOR = 590;
   const WORLD_W = 2800;
+  const PLAYER_SCALE = .62;
 
   const ui = {
     boot: document.querySelector('#bootScreen'),
@@ -244,14 +262,14 @@
   function fireArrow(charge) {
     const speed = lerp(680, 1050, charge);
     projectiles.push({
-      x: player.x + player.facing * 76, y: player.y - 153,
+      x: player.x + player.facing * 76 * PLAYER_SCALE, y: player.y - 153 * PLAYER_SCALE,
       vx: player.facing * speed, vy: lerp(5, -25, charge),
       life: 1.8, damage: Math.round(12 + 30 * charge),
       dir: player.facing, rotation: 0,
     });
     player.vx -= player.facing * 28 * charge;
     sfx.swing('bow');
-    addBurst(player.x + player.facing * 70, player.y - 153, '#e7be6b', 5, 85);
+    addBurst(player.x + player.facing * 70 * PLAYER_SCALE, player.y - 153 * PLAYER_SCALE, '#e7be6b', 5, 85);
   }
 
   function beginDash() {
@@ -293,14 +311,14 @@
   }
 
   function meleeHit(kind, attack) {
-    const range = kind === 'axe' ? 178 : 92 + attack.combo * 5;
+    const range = kind === 'axe' ? 132 : 72 + attack.combo * 4;
     const damage = kind === 'axe' ? 36 : 11 + attack.combo * 2;
-    const y = player.y - 115;
+    const y = player.y - 115 * PLAYER_SCALE;
     enemies.forEach(enemy => {
       if (!enemy.alive || attack.hit.has(enemy.id)) return;
       const dx = (enemy.x - player.x) * player.facing;
       const dy = Math.abs(enemy.y - y);
-      if (dx > -20 && dx < range && dy < enemy.size / 2 + (kind === 'axe' ? 100 : 70)) {
+      if (dx > -14 && dx < range && dy < enemy.size / 2 + (kind === 'axe' ? 62 : 48)) {
         attack.hit.add(enemy.id);
         strikeEnemy(enemy, damage, kind === 'axe' ? 410 : 210, kind === 'axe');
       }
@@ -316,7 +334,8 @@
     player.vy = -250;
     shake = 10;
     sfx.hit(true);
-    addBurst(player.x, player.y - 110, '#d95a49', 12, 220);
+    addBurst(player.x, player.y - 110 * PLAYER_SCALE, '#d95a49', 12, 220);
+    showNotice(`被弾 −${amount}`, .42);
     if (player.hp <= 0) {
       player.hp = 0;
       showNotice('コタロー、撤退！', 1.1);
@@ -437,7 +456,7 @@
       enemy.x = clamp(enemy.x, enemy.homeX - 220, enemy.homeX + 220);
       if (enemy.type === 'flier') enemy.y = FLOOR - 150 + Math.sin(enemy.phase) * 34;
       else enemy.y = FLOOR - enemy.size / 2 + Math.abs(Math.sin(enemy.phase)) * -2;
-      if (Math.abs(enemy.x - player.x) < enemy.size * .55 + 31 && Math.abs(enemy.y - (player.y - 100)) < enemy.size * .65 + 82 && enemy.contactCd <= 0) {
+      if (Math.abs(enemy.x - player.x) < enemy.size * .55 + 24 && Math.abs(enemy.y - (player.y - 100 * PLAYER_SCALE)) < enemy.size * .65 + 52 && enemy.contactCd <= 0) {
         enemy.contactCd = .8;
         hurtPlayer(enemy.x, enemy.type === 'brute' ? 18 : 10);
       }
@@ -450,7 +469,7 @@
       p.rotation = Math.atan2(p.vy, p.vx);
       for (const enemy of enemies) {
         if (!enemy.alive || p.life <= 0) continue;
-        if (Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.size * .6 + 18) {
+        if (Math.hypot(enemy.x - p.x, enemy.y - p.y) < enemy.size * .6 + 12) {
           strikeEnemy(enemy, p.damage, 260, p.damage > 32);
           p.life = 0;
         }
@@ -476,7 +495,9 @@
     updateProjectiles(dt);
     updateParticles(dt);
     shake = Math.max(0, shake - dt * 32);
-    cameraX = lerp(cameraX, clamp(player.x - W * .42, 0, WORLD_W - W), 1 - Math.pow(.0008, dt));
+    const lookAhead = clamp(player.facing * 80 + player.vx * .22, -150, 150);
+    const cameraTarget = clamp(player.x + lookAhead - W * .42, 0, Math.max(0, WORLD_W - W));
+    cameraX = lerp(cameraX, cameraTarget, 1 - Math.pow(.00025, dt));
     if (noticeTimer > 0) {
       noticeTimer -= dt;
       if (noticeTimer <= 0) ui.notice.classList.remove('show');
@@ -668,8 +689,8 @@
     const blink = player.invulnerable > 0 && Math.floor(player.invulnerable * 18) % 2 === 0;
 
     ctx.save();
-    ctx.translate(screenX, screenY + bob);
-    ctx.scale(player.facing, 1);
+    ctx.translate(screenX, screenY + bob * PLAYER_SCALE);
+    ctx.scale(player.facing * PLAYER_SCALE, PLAYER_SCALE);
     ctx.translate(pose.rootX, pose.rootY);
     ctx.globalAlpha = blink ? .48 : 1;
     ctx.scale(1 + squash * .09, 1 - squash * .12);
@@ -721,7 +742,7 @@
     drawPart(images.body, BODY.vest, -7, -68, 116, 136, -.03, .48, .55);
     drawPart(images.body, BODY.belly, 24, -43 + breath * .55, 104 + breath * .25, 111 + breath * .35, .02, .48, .52);
     drawPart(images.body, BODY.wrap, 9, -78, 118, 122, .015, .48, .52, .96);
-    drawPart(images.body, BODY.head, 20, -145, 130, 106, -.025 - bodyLean * .42 + pose.head, .42, .68);
+    drawPart(images.body, BODY.head, 20, -147, 145, 118, -.025 - bodyLean * .42 + pose.head, .42, .68);
     ctx.restore();
 
     // Each lower-leg image already contains the ankle and paw. Drawing a third
@@ -752,12 +773,12 @@
 
     // Procedural action trails belong to the motion, not to a baked frame.
     if (player.attack?.kind === 'dagger' && player.attack.t > .06 && player.attack.t < .18) {
-      ctx.strokeStyle = 'rgba(244,218,157,.72)'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(25, -155, 92, -1.3, .5); ctx.stroke();
+      ctx.strokeStyle = 'rgba(244,218,157,.68)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(58, -118, 70, -1.2, .52); ctx.stroke();
     }
     if (player.attack?.kind === 'axe' && player.attack.t > .34 && player.attack.t < .55) {
-      ctx.strokeStyle = 'rgba(213,98,72,.62)'; ctx.lineWidth = 13; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(7, -153, 148, -1.55, .6); ctx.stroke();
+      ctx.strokeStyle = 'rgba(213,98,72,.58)'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(80, -105, 100, -1.45, .58); ctx.stroke();
     }
     if (player.dashTimer > 0) {
       for (let i = 1; i <= 3; i++) {
@@ -795,7 +816,7 @@
   }
 
   function drawProjectiles() {
-    projectiles.forEach(p => drawPart(images.weapons, GEAR.arrow, p.x - cameraX, p.y, 104, 22, p.rotation, .5, .5));
+    projectiles.forEach(p => drawPart(images.weapons, GEAR.arrow, p.x - cameraX, p.y, 72, 15, p.rotation, .5, .5));
   }
 
   function drawParticles() {
@@ -824,7 +845,7 @@
 
     // Grounding shadow follows acceleration and landing compression.
     ctx.fillStyle = `rgba(0,0,0,${player.grounded ? .34 : .18})`;
-    ctx.beginPath(); ctx.ellipse(player.x - cameraX, FLOOR + 5, 54 - Math.min(20, Math.abs(player.y - FLOOR) * .06), 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(player.x - cameraX, FLOOR + 4, 34 - Math.min(12, Math.abs(player.y - FLOOR) * .04), 8, 0, 0, Math.PI * 2); ctx.fill();
     enemies.forEach(drawEnemy);
     drawProjectiles();
     drawPuppet(player.x - cameraX, player.y);
@@ -833,11 +854,23 @@
     // Bow charge meter is deliberately world-space, directly above Kotaro.
     if (player.attack?.kind === 'bowCharge') {
       const c = player.attack.charge;
-      const x = player.x - cameraX - 55, y = player.y - 300;
-      ctx.fillStyle = 'rgba(12,10,15,.72)'; ctx.fillRect(x, y, 110, 9);
-      ctx.fillStyle = c >= 1 ? '#fff0ac' : '#e1ad62'; ctx.fillRect(x + 2, y + 2, 106 * c, 5);
+      const x = player.x - cameraX - 50, y = player.y - 300 * PLAYER_SCALE;
+      ctx.fillStyle = 'rgba(12,10,15,.72)'; ctx.fillRect(x, y, 100, 9);
+      ctx.fillStyle = c >= 1 ? '#fff0ac' : '#e1ad62'; ctx.fillRect(x + 2, y + 2, 96 * c, 5);
     }
     ctx.restore();
+
+    if (player.hurtTimer > 0) {
+      const hurtAlpha = clamp(player.hurtTimer / .34, 0, 1);
+      const vignette = ctx.createRadialGradient(W / 2, H / 2, H * .18, W / 2, H / 2, Math.max(W, H) * .7);
+      vignette.addColorStop(0, 'rgba(143,24,24,0)');
+      vignette.addColorStop(1, `rgba(143,24,24,${.34 * hurtAlpha})`);
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = `rgba(255,92,72,${.52 * hurtAlpha})`;
+      ctx.lineWidth = 12;
+      ctx.strokeRect(6, 6, W - 12, H - 12);
+    }
   }
 
   function frame(now) {
@@ -870,6 +903,13 @@
   });
   window.addEventListener('keyup', e => setKey(e.code, false, false));
   window.addEventListener('blur', () => { input.left = input.right = input.attack = false; releaseAttack(); });
+  window.addEventListener('resize', () => {
+    if (fitCanvasToViewport()) {
+      cameraX = clamp(cameraX, 0, Math.max(0, WORLD_W - W));
+      render();
+    }
+    lastTime = performance.now();
+  });
 
   function syncPauseState() {
     paused = document.hidden || ui.help.open || ui.loadout.open;
@@ -933,7 +973,7 @@
       grounded: player.grounded, activeSlot, weapon: currentWeapon(),
       loadout: [...selectedLoadout], attack: player.attack?.kind ?? null,
       projectiles: projectiles.length, livingEnemies: enemies.filter(e => e.alive).length,
-      kills,
+      kills, canvasWidth: W, canvasHeight: H,
     }),
   };
   render();
