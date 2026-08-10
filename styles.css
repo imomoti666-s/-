@@ -102,16 +102,26 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
 .loadout-choice strong { display: block; font-size: 12px; }
 .loadout-choice small { display: block; color: var(--muted); font-size: 9px; }
 
-.touch-controls { position: absolute; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 8; display: none; align-items: flex-end; justify-content: space-between; padding: 0 18px; pointer-events: none; }
-.touch-controls button { pointer-events: auto; width: 64px; height: 64px; border: 1px solid rgba(255,255,255,.15); border-radius: 50%; background: rgba(27,22,31,.68); box-shadow: inset 0 1px rgba(255,255,255,.08); color: rgba(255,255,255,.88); font-size: 20px; font-weight: 900; backdrop-filter: blur(8px); }
-.touch-controls button.pressed { background: rgba(197,87,63,.7); transform: scale(.94); }
-.touch-move, .touch-actions { display: flex; gap: 9px; align-items: flex-end; }
-.touch-actions button.small { width: 48px; height: 48px; font-size: 10px; }
-.touch-actions button.attack { width: 72px; height: 72px; background: rgba(164,57,42,.76); }
+.touch-controls { position: absolute; inset: 0; z-index: 8; display: none; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.touch-controls::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 210px; background: linear-gradient(0deg,rgba(9,8,12,.72),rgba(9,8,12,0)); pointer-events: none; }
+.touch-move, .touch-actions { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); pointer-events: none; }
+.touch-move { left: max(16px, env(safe-area-inset-left)); display: flex; gap: 10px; align-items: flex-end; }
+.touch-actions { right: max(16px, env(safe-area-inset-right)); width: 228px; height: 146px; }
+.touch-controls button { position: relative; display: grid; place-content: center; gap: 1px; pointer-events: auto; width: 68px; height: 68px; padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(27,22,31,.76); box-shadow: 0 8px 24px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.1); color: rgba(255,255,255,.92); font-size: 22px; font-weight: 900; backdrop-filter: blur(10px); touch-action: none; transition: transform .08s ease, background .08s ease; }
+.touch-controls button b { font-size: 22px; line-height: 1; }
+.touch-controls button small { color: rgba(255,255,255,.68); font-size: 8px; font-weight: 800; letter-spacing: .05em; }
+.touch-controls button.pressed { background: rgba(197,87,63,.86); transform: scale(.92); }
+.touch-actions button { position: absolute; }
+.touch-actions #attackButton { right: 0; bottom: 0; width: 82px; height: 82px; background: rgba(164,57,42,.88); border-color: rgba(255,176,140,.4); }
+.touch-actions #attackButton b { font-size: 27px; }
+.touch-actions #jumpButton { right: 91px; bottom: 71px; width: 66px; height: 66px; background: rgba(117,82,45,.8); }
+.touch-actions #dashButton { right: 92px; bottom: 0; width: 58px; height: 58px; }
+.touch-actions #switchButtonTouch { right: 14px; bottom: 91px; width: 52px; height: 52px; background: rgba(83,55,77,.82); }
 
-@media (hover: none), (pointer: coarse) {
-  .touch-controls { display: flex; }
-  .weapon-rack { bottom: calc(96px + env(safe-area-inset-bottom)); }
+@media (hover: none), (pointer: coarse), (max-width: 900px), (max-height: 600px) {
+  .touch-controls { display: block; }
+  .weapon-rack { bottom: calc(168px + env(safe-area-inset-bottom)); }
+  .weapon-rack #switchWeapon { display: none; }
   .round-button { top: 74px; }
   .loadout-button { top: 74px; }
 }
@@ -133,10 +143,33 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
   .control-grid, .loadout-grid { grid-template-columns: 1fr; }
 }
 
-@media (max-height: 500px) and (pointer: coarse) {
-  .weapon-rack { bottom: calc(9px + env(safe-area-inset-bottom)); left: auto; right: 12px; transform: none; opacity: .7; }
-  .weapon-slot { min-width: 76px; }
-  .touch-controls { bottom: calc(8px + env(safe-area-inset-bottom)); }
-  .touch-controls button { width: 54px; height: 54px; }
-  .touch-actions button.attack { width: 62px; height: 62px; }
+@media (max-width: 520px) and (orientation: portrait) {
+  .touch-controls::before { height: 190px; }
+  .touch-move { left: max(12px, env(safe-area-inset-left)); gap: 7px; bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .touch-move button { width: 58px; height: 58px; }
+  .touch-actions { right: max(10px, env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); width: 190px; height: 132px; }
+  .touch-actions #attackButton { width: 76px; height: 76px; }
+  .touch-actions #jumpButton { right: 80px; bottom: 66px; width: 60px; height: 60px; }
+  .touch-actions #dashButton { right: 82px; width: 55px; height: 55px; }
+  .touch-actions #switchButtonTouch { right: 13px; bottom: 80px; width: 48px; height: 48px; }
+  .weapon-rack { bottom: calc(150px + env(safe-area-inset-bottom)); }
+  .weapon-slot { min-width: 78px; }
+  .weapon-slot kbd { display: none; }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .brand-card, .status-card, .stage-card { top: 10px; }
+  .round-button, .loadout-button { top: 66px; }
+  .touch-controls::before { height: 105px; }
+  .touch-move { left: max(12px, env(safe-area-inset-left)); bottom: calc(9px + env(safe-area-inset-bottom)); gap: 7px; }
+  .touch-move button { width: 56px; height: 56px; }
+  .touch-actions { right: max(12px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); width: 244px; height: 66px; }
+  .touch-actions #attackButton { right: 0; bottom: 0; width: 66px; height: 66px; }
+  .touch-actions #jumpButton { right: 74px; bottom: 3px; width: 58px; height: 58px; }
+  .touch-actions #dashButton { right: 140px; bottom: 5px; width: 54px; height: 54px; }
+  .touch-actions #switchButtonTouch { right: 202px; bottom: 7px; width: 50px; height: 50px; }
+  .touch-controls button b { font-size: 19px; }
+  .touch-controls button small { font-size: 7px; }
+  .weapon-rack { bottom: calc(9px + env(safe-area-inset-bottom)); opacity: .92; }
+  .weapon-slot { min-width: 82px; padding: 5px 24px 5px 8px; }
 }
