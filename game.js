@@ -1190,7 +1190,7 @@
   ui.start.disabled = true;
   Promise.all([
     loadImage(images.weapons, 'assets/kotaro-weapons-atlas.webp'),
-    loadImage(images.locomotion, 'assets/kotaro-atlas-locomotion-v2.webp'),
+    loadImage(images.locomotion, 'assets/kotaro-atlas-locomotion-v3.webp'),
     loadImage(images.aerial, 'assets/kotaro-atlas-aerial-v2.webp'),
     loadImage(images.dagger, 'assets/kotaro-atlas-dagger-v2.webp'),
     loadImage(images.axe, 'assets/kotaro-atlas-axe-v2.webp'),
