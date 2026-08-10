@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#121019">
+  <meta name="screen-orientation" content="landscape">
   <meta name="description" content="小太りなハイエナ盗賊コタローを操る、2Dアクション×ハクスラRPG『ケモスラ』の操作プロトタイプ。">
   <title>ケモスラ｜操作プロトタイプ</title>
-  <link rel="stylesheet" href="styles.css?v=20260810c">
+  <link rel="manifest" href="manifest.webmanifest?v=20260810d">
+  <link rel="stylesheet" href="styles.css?v=20260810d">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -53,11 +55,21 @@
 
     <section id="bootScreen" class="boot-screen">
       <div class="boot-card glass">
-        <p class="eyebrow">PLAYABLE PROTOTYPE v0.3</p>
+        <p class="eyebrow">PLAYABLE PROTOTYPE v0.4</p>
         <h2>盗んで、斬って、<br><em>全部いただく。</em></h2>
         <p>コタローの重心と武器の手応えを試すための訓練場だ。敵と地形は開発用の図形で表示される。</p>
         <button id="startButton" class="primary-button" type="button">訓練を始める</button>
         <span id="assetStatus">コタローを準備中…</span>
+      </div>
+    </section>
+
+    <section id="orientationGate" class="orientation-gate" aria-label="横画面への切り替え案内">
+      <div class="orientation-card glass">
+        <div class="rotate-mark" aria-hidden="true">↻</div>
+        <p class="eyebrow">LANDSCAPE ONLY</p>
+        <h2>端末を横向きに</h2>
+        <p>ケモスラは横画面専用だ。下のボタンで横向き固定を試し、切り替わらない端末では本体を回転してくれ。</p>
+        <button id="landscapeButton" class="primary-button" type="button">横画面で開く</button>
       </div>
     </section>
 
@@ -100,6 +112,6 @@
       </div>
     </nav>
   </main>
-  <script src="game.js?v=20260810c"></script>
+  <script src="game.js?v=20260810d"></script>
 </body>
 </html>
