@@ -30,8 +30,12 @@
   const SPRITE_BASELINE = 362;
   const ATTACK_FRAMES = 20;
   const ATTACK_KEYS = 5;
+  const ATTACK_BUFFER_TIME = .2;
   const ATTACK_CONTEXT_ROW = { idle: 0, move: 1, dodge: 2, air: 3 };
+  const ATTACK_CONTEXT_LABEL = { idle: '停止', move: '移動', dodge: '回避', air: '空中' };
   const BOW_CHARGE_FACTOR = { idle: 1, move: .78, dodge: .46, air: .5 };
+  const PLAYER_HIT_WIDTH = 58;
+  const PLAYER_HIT_HEIGHT = 154;
 
   const ui = {
     boot: document.querySelector('#bootScreen'),
@@ -199,10 +203,11 @@
   const player = {
     x: 430, y: FLOOR, vx: 0, vy: 0, facing: 1,
     grounded: true, hp: 100, maxHp: 100,
-    attack: null, switchState: null,
+    attack: null, attackBuffer: null, switchState: null,
     dashTimer: 0, dashCooldown: 0, dodgeGrace: 0, invulnerable: 0,
     hurtTimer: 0, landing: 0, walkPhase: 0,
     combo: 0, comboWindow: 0, tailRot: 0, tailVel: 0, animTime: 0,
+    dead: false, respawnTimer: 0,
   };
 
   let enemies = [];
@@ -240,9 +245,9 @@
     const ratio = clamp(player.hp / player.maxHp, 0, 1);
     ui.hpText.textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
     ui.hpBar.style.transform = `scaleX(${ratio})`;
-    const dashRatio = player.dashCooldown <= 0 ? 1 : 1 - player.dashCooldown / .85;
+    const dashRatio = player.dead ? 0 : player.dashCooldown <= 0 ? 1 : 1 - player.dashCooldown / .85;
     ui.dashBar.style.transform = `scaleX(${clamp(dashRatio, 0, 1)})`;
-    ui.dashText.textContent = player.dashCooldown <= 0 ? 'READY' : player.dashCooldown.toFixed(1);
+    ui.dashText.textContent = player.dead ? 'WAIT' : player.dashCooldown <= 0 ? 'READY' : player.dashCooldown.toFixed(1);
     ui.kills.textContent = String(kills);
     ui.slots.forEach((el, i) => {
       el.classList.toggle('active', i === activeSlot);
@@ -269,10 +274,11 @@
   }
 
   function switchWeapon(slot = 1 - activeSlot) {
-    if (!started || player.hurtTimer > .08 || player.dashTimer > 0 || player.switchState) return;
+    if (!started || player.dead || player.hurtTimer > .08 || player.dashTimer > 0 || player.switchState) return;
     slot = clamp(slot, 0, 1);
     if (slot === activeSlot) return;
     player.attack = null;
+    player.attackBuffer = null;
     input.lightAttack = false;
     input.strongAttack = false;
     player.switchState = { t: 0, duration: .24, next: slot, changed: false };
@@ -288,14 +294,17 @@
   function currentAttackContext() {
     if (player.dashTimer > 0 || player.dodgeGrace > 0) return 'dodge';
     if (!player.grounded) return 'air';
-    return horizontalAxis() || Math.abs(player.vx) > 70 ? 'move' : 'idle';
+    // Attack variants are selected by intent, not by residual slide. Releasing
+    // the direction before attacking must always produce the neutral variant.
+    return horizontalAxis() ? 'move' : 'idle';
   }
 
   function startAttack(tier = 'light') {
-    if (!started || paused || player.hurtTimer > 0 || player.switchState || player.attack) return false;
+    if (!started || paused || player.dead || player.hurtTimer > 0 || player.switchState || player.attack) return false;
     const weapon = currentWeapon();
     const context = currentAttackContext();
     const data = ATTACK_DATA[weapon][tier];
+    player.attackBuffer = null;
 
     // A dodge attack consumes the remaining dash but inherits a short counter
     // window. Neutral light attacks never invent a lunge or a jump.
@@ -324,13 +333,23 @@
         fired: false, hit: new Set(),
       };
     }
-    if (tier === 'strong') showNotice(data.name[context], .62);
+    showNotice(`${data.name[context]}・${ATTACK_CONTEXT_LABEL[context]}`, tier === 'strong' ? .72 : .5);
+    return true;
+  }
+
+  function requestAttack(tier = 'light') {
+    if (startAttack(tier)) return true;
+    if (!started || paused || player.dead || player.hurtTimer > 0 || player.switchState || !player.attack) return false;
+    // Keep late taps alive long enough to chain on mobile. A released buffered
+    // bow input becomes a minimum-charge shot when its turn arrives.
+    player.attackBuffer = { tier, time: ATTACK_BUFFER_TIME, released: false };
     return true;
   }
 
   function releaseAttack(tier = 'light') {
     if (tier === 'light') input.lightAttack = false;
     else input.strongAttack = false;
+    if (player.attackBuffer?.tier === tier) player.attackBuffer.released = true;
     if (!player.attack || player.attack.kind !== 'bowCharge' || player.attack.tier !== tier) return;
     const charge = clamp(player.attack.charge, .08, 1);
     const { context } = player.attack;
@@ -365,8 +384,9 @@
   }
 
   function beginDash() {
-    if (!started || player.dashCooldown > 0 || player.hurtTimer > 0) return;
+    if (!started || player.dead || player.dashCooldown > 0 || player.hurtTimer > 0) return;
     player.attack = null;
+    player.attackBuffer = null;
     player.switchState = null;
     player.dashTimer = .18;
     player.dashCooldown = .85;
@@ -423,8 +443,10 @@
   }
 
   function hurtPlayer(sourceX, amount) {
-    if (player.invulnerable > 0 || player.hurtTimer > 0) return;
+    if (player.dead || player.invulnerable > 0 || player.hurtTimer > 0) return;
     player.hp -= amount;
+    player.attack = null;
+    player.attackBuffer = null;
     player.hurtTimer = .34;
     player.invulnerable = .75;
     player.vx = sourceX < player.x ? 300 : -300;
@@ -435,17 +457,23 @@
     showNotice(`被弾 −${amount}`, .42);
     if (player.hp <= 0) {
       player.hp = 0;
-      showNotice('コタロー、撤退！', 1.1);
-      window.setTimeout(resetPlayer, 900);
+      player.dead = true;
+      player.respawnTimer = 1.15;
+      player.vx = 0;
+      player.vy = 0;
+      input.left = input.right = input.lightAttack = input.strongAttack = false;
+      input.jumpQueued = input.dashQueued = false;
+      showNotice('コタロー撤退・再出撃準備', 1.1);
     }
   }
 
   function resetPlayer() {
     player.x = 430; player.y = FLOOR; player.vx = 0; player.vy = 0;
     player.hp = player.maxHp; player.hurtTimer = 0; player.invulnerable = 1;
-    player.attack = null; player.switchState = null; player.grounded = true;
+    player.attack = null; player.attackBuffer = null; player.switchState = null; player.grounded = true;
     player.dashTimer = 0; player.dashCooldown = 0; player.dodgeGrace = 0; player.landing = 0;
     player.combo = 0; player.comboWindow = 0;
+    player.dead = false; player.respawnTimer = 0;
     input.left = input.right = input.lightAttack = input.strongAttack = false;
     input.jumpQueued = input.dashQueued = false;
     hitStop = 0; shake = 0; projectiles = []; particles = [];
@@ -512,19 +540,19 @@
     const p = attack.kind === 'bowCharge' ? clamp(attack.charge, 0, 1) : attackProgress(attack);
     if (attack.context === 'idle') return 0;
     if (attack.context === 'air') {
-      if (attack.weapon === 'dagger') return p < .45 ? 170 : 80;
-      if (attack.weapon === 'axe') return p < .48 ? 145 : 55;
+      if (attack.weapon === 'dagger') return p < .45 ? 125 : 55;
+      if (attack.weapon === 'axe') return p < .48 ? 95 : 35;
       return null;
     }
     if (attack.context === 'dodge') {
-      if (attack.weapon === 'dagger') return p < .22 ? -90 : p < .62 ? 390 : 70;
-      if (attack.weapon === 'axe') return p < .28 ? -115 : p < .68 ? 335 : 45;
-      return p < .25 ? -150 : p < .58 ? 125 : 0;
+      if (attack.weapon === 'dagger') return p < .22 ? -70 : p < .62 ? 330 : 55;
+      if (attack.weapon === 'axe') return p < .28 ? -90 : p < .68 ? 285 : 35;
+      return p < .25 ? -110 : p < .58 ? 95 : 0;
     }
     if (attack.kind === 'bowCharge') return null;
-    if (attack.weapon === 'dagger') return p < .18 ? 210 : p < .6 ? 525 : p < .84 ? 270 : 35;
-    if (attack.weapon === 'axe') return p < .2 ? 260 : p < .68 ? 455 : p < .88 ? 190 : 30;
-    return p < .25 ? 240 : p < .6 ? 390 : p < .84 ? 145 : 20;
+    if (attack.weapon === 'dagger') return p < .18 ? 170 : p < .6 ? 410 : p < .84 ? 210 : 30;
+    if (attack.weapon === 'axe') return p < .2 ? 205 : p < .68 ? 350 : p < .88 ? 145 : 25;
+    return p < .25 ? 180 : p < .6 ? 285 : p < .84 ? 105 : 15;
   }
 
   function updateHorizontalMotion(dt, axis) {
@@ -545,7 +573,8 @@
     if (action.tier === 'strong') {
       const scripted = strongActionSpeed(action);
       if (scripted !== null) {
-        player.vx = approach(player.vx, player.facing * scripted, 3000 * dt);
+        const releasedScale = (action.context === 'move' || action.context === 'air') && !axis ? .34 : 1;
+        player.vx = approach(player.vx, player.facing * scripted * releasedScale, 2800 * dt);
         return;
       }
     }
@@ -572,6 +601,18 @@
     player.comboWindow = Math.max(0, player.comboWindow - dt);
     player.landing = Math.max(0, player.landing - dt * 3.4);
 
+    if (player.attackBuffer) {
+      player.attackBuffer.time -= dt;
+      if (player.attackBuffer.time <= 0) player.attackBuffer = null;
+    }
+
+    if (player.dead) {
+      player.respawnTimer = Math.max(0, player.respawnTimer - dt);
+      player.vx = approach(player.vx, 0, 1700 * dt);
+      if (player.respawnTimer <= 0) resetPlayer();
+      return;
+    }
+
     if (input.jumpQueued) {
       if (player.grounded && player.hurtTimer <= 0 && !player.attack) {
         player.vy = -660;
@@ -595,6 +636,14 @@
     }
 
     updateAttackAction(dt);
+
+    if (!player.attack && player.attackBuffer) {
+      const queued = player.attackBuffer;
+      player.attackBuffer = null;
+      if (requestAttack(queued.tier) && queued.released && player.attack?.kind === 'bowCharge') {
+        releaseAttack(queued.tier);
+      }
+    }
 
     const axis = horizontalAxis();
     if (axis && player.hurtTimer <= 0 && player.dashTimer <= 0 && !player.attack) player.facing = axis;
@@ -641,7 +690,15 @@
       enemy.x = clamp(enemy.x, enemy.homeX - 220, enemy.homeX + 220);
       if (enemy.type === 'flier') enemy.y = FLOOR - 150 + Math.sin(enemy.phase) * 34;
       else enemy.y = FLOOR - enemy.size / 2 + Math.abs(Math.sin(enemy.phase)) * -2;
-      if (Math.abs(enemy.x - player.x) < enemy.size * .55 + 34 && Math.abs(enemy.y - (player.y - PLAYER_BODY_HEIGHT * .48)) < enemy.size * .65 + 58 && enemy.contactCd <= 0) {
+      const playerLeft = player.x - PLAYER_HIT_WIDTH / 2;
+      const playerRight = player.x + PLAYER_HIT_WIDTH / 2;
+      const playerTop = player.y - PLAYER_HIT_HEIGHT;
+      const playerBottom = player.y - 5;
+      const nearestX = clamp(enemy.x, playerLeft, playerRight);
+      const nearestY = clamp(enemy.y, playerTop, playerBottom);
+      const contactRadius = enemy.size * .56;
+      const touchesPlayer = Math.hypot(enemy.x - nearestX, enemy.y - nearestY) < contactRadius;
+      if (!player.dead && touchesPlayer && enemy.contactCd <= 0) {
         enemy.contactCd = .8;
         hurtPlayer(enemy.x, enemy.type === 'brute' ? 18 : 10);
       }
@@ -731,6 +788,61 @@
     ctx.restore();
   }
 
+  function drawMotionStreaks(pose, screenX, screenY) {
+    if (!pose.trail) return;
+    const attack = player.attack;
+    const speed = clamp(Math.abs(player.vx), 120, 720);
+    const length = 38 + speed * .11;
+    const color = attack?.tier === 'strong' ? '228,180,98' : '197,87,63';
+    ctx.save();
+    ctx.translate(screenX, screenY);
+    ctx.scale(player.facing, 1);
+    ctx.lineCap = 'round';
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < pose.trail + 1; i++) {
+      const y = -44 - i * 24;
+      ctx.strokeStyle = `rgba(${color},${.16 - i * .028})`;
+      ctx.lineWidth = Math.max(2, 7 - i * 1.4);
+      ctx.beginPath();
+      ctx.moveTo(-18 - i * 7, y);
+      ctx.quadraticCurveTo(-length * .56, y - 7, -length - i * 14, y + 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawAttackArc(screenX, screenY) {
+    const attack = player.attack;
+    if (!attack || attack.kind === 'bowCharge' || attack.kind === 'bowRelease') return;
+    const p = attackProgress(attack);
+    const active = attack.weapon === 'axe'
+      ? [attack.tier === 'strong' ? .42 : .3, attack.tier === 'strong' ? .8 : .7]
+      : [attack.tier === 'strong' ? .22 : .13, attack.tier === 'strong' ? .82 : .72];
+    if (p <= active[0] || p >= active[1]) return;
+    const t = clamp((p - active[0]) / (active[1] - active[0]), 0, 1);
+    const alpha = Math.sin(t * Math.PI);
+    const heavy = attack.weapon === 'axe';
+    ctx.save();
+    ctx.translate(screenX, screenY - (attack.context === 'air' ? 90 : 92));
+    ctx.scale(player.facing, 1);
+    ctx.rotate(lerp(-.36, .3, t));
+    ctx.globalCompositeOperation = 'screen';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgba(${heavy ? '255,132,91' : '255,224,154'},${alpha * (heavy ? .48 : .38)})`;
+    ctx.lineWidth = heavy ? 12 : 6;
+    ctx.beginPath();
+    ctx.arc(heavy ? 6 : 18, 2, heavy ? 118 : 78, -1.18, .78);
+    ctx.stroke();
+    if (!heavy && attack.tier === 'strong') {
+      ctx.strokeStyle = `rgba(255,130,95,${alpha * .25})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(12, 8, 96, -1.02, .64);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function attackVisualProgress(attack) {
     if (attack.kind === 'bowCharge') return attack.charge * .5;
     if (attack.kind === 'bowRelease') return .5 + attackProgress(attack) * .5;
@@ -757,6 +869,7 @@
   }
 
   function selectSpritePose() {
+    if (player.dead) return { sheet: 'aerial', frame: 7, loop: false };
     if (player.hurtTimer > 0) return { sheet: 'aerial', frame: 7, loop: false };
     if (player.dashTimer > 0) return { sheet: 'aerial', frame: 6, loop: false, trail: 3 };
 
@@ -818,25 +931,53 @@
   function drawFullBodySprite(screenX, screenY) {
     const pose = selectSpritePose();
     const blink = player.invulnerable > 0 && Math.floor(player.invulnerable * 18) % 2 === 0;
-    const baseAlpha = blink ? .48 : 1;
+    const baseAlpha = player.dead ? .58 : blink ? .84 : 1;
     const baseFrame = Math.floor(spriteFrameIndex(pose, pose.frame));
 
-    if (pose.trail) {
-      for (let i = pose.trail; i >= 1; i--) {
-        drawSpriteCell(pose, baseFrame, screenX - player.facing * i * 24, screenY, .045 * i * baseAlpha);
-      }
-    }
+    // A repeated full-body afterimage was the source of the blurry "clones"
+    // visible in the v0.6 capture. Keep one readable silhouette and use speed
+    // lines plus a weapon arc for motion instead.
+    drawMotionStreaks(pose, screenX, screenY);
 
     const frameValue = spriteFrameIndex(pose, pose.frame);
     const nextFrame = Math.min(baseFrame + 1, pose.frameEnd ?? SPRITES[pose.sheet].frames - 1);
     const fraction = frameValue - baseFrame;
-    const blend = fraction * fraction * (3 - 2 * fraction);
+    const isAttackPose = pose.sheet.endsWith('Light') || pose.sheet.endsWith('Strong');
+    const transition = isAttackPose ? clamp((fraction - .64) / .36, 0, 1) : fraction;
+    const blend = transition * transition * (3 - 2 * transition);
     if (nextFrame > baseFrame && blend > 0) {
       drawSpriteCell(pose, baseFrame, screenX, screenY, (1 - blend) * baseAlpha);
       drawSpriteCell(pose, nextFrame, screenX, screenY, blend * baseAlpha);
     } else {
       drawSpriteCell(pose, baseFrame, screenX, screenY, baseAlpha);
     }
+
+    drawAttackArc(screenX, screenY);
+    if (player.invulnerable > 0 && !player.dead) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(239,194,111,${.1 + Math.abs(Math.sin(player.animTime * 11)) * .13})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(screenX, screenY - 78, 48, 70, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawRespawnState() {
+    if (!player.dead) return;
+    const remaining = Math.max(0, player.respawnTimer).toFixed(1);
+    ctx.save();
+    ctx.fillStyle = 'rgba(12,10,15,.7)';
+    ctx.fillRect(W / 2 - 122, H * .41, 244, 62);
+    ctx.strokeStyle = 'rgba(228,180,98,.34)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - 122, H * .41, 244, 62);
+    ctx.fillStyle = '#f3c878';
+    ctx.textAlign = 'center';
+    ctx.font = '900 18px system-ui, sans-serif';
+    ctx.fillText(`再出撃まで ${remaining}`, W / 2, H * .41 + 38);
+    ctx.restore();
   }
 
   function drawEnemy(enemy) {
@@ -914,13 +1055,14 @@
       const hurtAlpha = clamp(player.hurtTimer / .34, 0, 1);
       const vignette = ctx.createRadialGradient(W / 2, H / 2, H * .18, W / 2, H / 2, Math.max(W, H) * .7);
       vignette.addColorStop(0, 'rgba(143,24,24,0)');
-      vignette.addColorStop(1, `rgba(143,24,24,${.34 * hurtAlpha})`);
+      vignette.addColorStop(1, `rgba(143,24,24,${.24 * hurtAlpha})`);
       ctx.fillStyle = vignette;
       ctx.fillRect(0, 0, W, H);
       ctx.strokeStyle = `rgba(255,92,72,${.52 * hurtAlpha})`;
-      ctx.lineWidth = 12;
-      ctx.strokeRect(6, 6, W - 12, H - 12);
+      ctx.lineWidth = 7;
+      ctx.strokeRect(4, 4, W - 8, H - 8);
     }
+    drawRespawnState();
   }
 
   function frame(now) {
@@ -937,11 +1079,11 @@
     if (down && !repeat && (code === 'Space' || code === 'KeyW' || code === 'ArrowUp')) input.jumpQueued = true;
     if (down && !repeat && (code === 'ShiftLeft' || code === 'ShiftRight')) input.dashQueued = true;
     if ((code === 'KeyJ' || code === 'KeyZ' || code === 'Enter')) {
-      if (down && !repeat) { input.lightAttack = true; startAttack('light'); }
+      if (down && !repeat) { input.lightAttack = true; requestAttack('light'); }
       if (!down) releaseAttack('light');
     }
     if (code === 'KeyK' || code === 'KeyC') {
-      if (down && !repeat) { input.strongAttack = true; startAttack('strong'); }
+      if (down && !repeat) { input.strongAttack = true; requestAttack('strong'); }
       if (!down) releaseAttack('strong');
     }
     if (down && !repeat && (code === 'KeyQ' || code === 'KeyX')) switchWeapon();
@@ -958,6 +1100,7 @@
   window.addEventListener('keyup', e => setKey(e.code, false, false));
   window.addEventListener('blur', () => {
     input.left = input.right = input.lightAttack = input.strongAttack = false;
+    player.attackBuffer = null;
     if (player.attack?.kind === 'bowCharge') player.attack = null;
   });
   window.addEventListener('resize', () => {
@@ -979,6 +1122,7 @@
     if (orientationBlocked) {
       input.left = input.right = input.lightAttack = input.strongAttack = false;
       input.jumpQueued = input.dashQueued = false;
+      player.attackBuffer = null;
       if (player.attack?.kind === 'bowCharge') player.attack = null;
     }
     if (started) syncPauseState();
@@ -1005,6 +1149,7 @@
     input.strongAttack = false;
     input.jumpQueued = false;
     input.dashQueued = false;
+    player.attackBuffer = null;
     if (player.attack?.kind === 'bowCharge') player.attack = null;
   }
 
@@ -1020,8 +1165,8 @@
   bindHold('#rightButton', () => input.right = true, () => input.right = false);
   bindHold('#jumpButton', () => input.jumpQueued = true);
   bindHold('#dashButton', () => input.dashQueued = true);
-  bindHold('#attackButton', () => { input.lightAttack = true; startAttack('light'); }, () => releaseAttack('light'));
-  bindHold('#strongAttackButton', () => { input.strongAttack = true; startAttack('strong'); }, () => releaseAttack('strong'));
+  bindHold('#attackButton', () => { input.lightAttack = true; requestAttack('light'); }, () => releaseAttack('light'));
+  bindHold('#strongAttackButton', () => { input.strongAttack = true; requestAttack('strong'); }, () => releaseAttack('strong'));
   bindHold('#switchButtonTouch', () => switchWeapon());
   ui.landscapeButton.addEventListener('click', () => { void requestLandscapeMode(); });
 
@@ -1031,7 +1176,7 @@
   });
   [ui.help, ui.loadout].forEach(dialog => dialog.addEventListener('close', syncPauseState));
   ui.applyLoadout.addEventListener('click', () => {
-    selectedLoadout = [...draftLoadout]; activeSlot = 0; player.attack = null; player.switchState = null; updateHud();
+    selectedLoadout = [...draftLoadout]; activeSlot = 0; player.attack = null; player.attackBuffer = null; player.switchState = null; updateHud();
     showNotice(`${WEAPONS[selectedLoadout[0]].name}＋${WEAPONS[selectedLoadout[1]].name}`, 1);
   });
   ui.switchWeapon.addEventListener('click', () => switchWeapon());
@@ -1079,7 +1224,9 @@
       attackTime: player.attack?.t ?? null,
       attackDuration: player.attack?.duration ?? null,
       attackCharge: player.attack?.charge ?? null,
+      attackBuffered: player.attackBuffer?.tier ?? null,
       invulnerable: player.invulnerable,
+      dead: player.dead, respawnTimer: player.respawnTimer,
       projectiles: projectiles.length, livingEnemies: enemies.filter(e => e.alive).length,
       kills, canvasWidth: W, canvasHeight: H,
       sprite: (() => {
