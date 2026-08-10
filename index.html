@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#121019">
   <meta name="description" content="小太りなハイエナ盗賊コタローを操る、2Dアクション×ハクスラRPG『ケモスラ』の操作プロトタイプ。">
   <title>ケモスラ｜操作プロトタイプ</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260810b">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -53,7 +53,7 @@
 
     <section id="bootScreen" class="boot-screen">
       <div class="boot-card glass">
-        <p class="eyebrow">PLAYABLE PROTOTYPE v0.1</p>
+        <p class="eyebrow">PLAYABLE PROTOTYPE v0.2</p>
         <h2>盗んで、斬って、<br><em>全部いただく。</em></h2>
         <p>コタローの重心と武器の手応えを試すための訓練場だ。敵と地形は開発用の図形で表示される。</p>
         <button id="startButton" class="primary-button" type="button">訓練を始める</button>
@@ -93,13 +93,13 @@
         <button id="rightButton" type="button" aria-label="右へ移動">▶</button>
       </div>
       <div class="touch-actions">
-        <button id="switchButtonTouch" class="small" type="button">切替</button>
-        <button id="dashButton" class="small" type="button">回避</button>
-        <button id="jumpButton" type="button">跳</button>
-        <button id="attackButton" class="attack" type="button">攻</button>
+        <button id="switchButtonTouch" class="small" type="button" aria-label="武器を切り替える"><b>換</b><small>武器</small></button>
+        <button id="dashButton" class="small" type="button" aria-label="回避する"><b>避</b><small>回避</small></button>
+        <button id="jumpButton" type="button" aria-label="ジャンプする"><b>跳</b><small>ジャンプ</small></button>
+        <button id="attackButton" class="attack" type="button" aria-label="攻撃する"><b>攻</b><small>攻撃</small></button>
       </div>
     </nav>
   </main>
-  <script src="game.js?v=b1f9cca"></script>
+  <script src="game.js?v=20260810b"></script>
 </body>
 </html>
