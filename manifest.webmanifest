@@ -1,0 +1,12 @@
+{
+  "name": "ケモスラ",
+  "short_name": "ケモスラ",
+  "description": "小太りなハイエナ盗賊コタローを操る2Dアクション×ハクスラRPGの操作プロトタイプ。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0c0b10",
+  "theme_color": "#121019"
+}
