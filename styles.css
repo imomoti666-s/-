@@ -82,6 +82,12 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
 .primary-button { width: 100%; margin-top: 10px; padding: 13px 20px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#d26348,#9d392d); box-shadow: 0 8px 20px rgba(116,39,31,.34); font-weight: 900; cursor: pointer; }
 .primary-button:disabled { opacity: .45; cursor: wait; }
 
+.orientation-gate { position: absolute; inset: 0; z-index: 30; display: none; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 35%,rgba(111,59,44,.3),rgba(8,7,10,.96)); }
+.orientation-card { width: min(410px, 90vw); padding: 26px; border-radius: 22px; text-align: center; }
+.orientation-card h2 { margin: 5px 0 10px; font-size: clamp(26px,8vw,42px); }
+.orientation-card > p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.rotate-mark { width: 66px; height: 66px; margin: 0 auto 14px; display: grid; place-items: center; border: 2px solid rgba(228,180,98,.5); border-radius: 20px; color: var(--gold); font-size: 42px; font-weight: 900; transform: rotate(-28deg); }
+
 .modal { width: min(580px, 92vw); border-radius: 20px; color: var(--ink); padding: 0; }
 .modal::backdrop { background: rgba(5,4,7,.72); backdrop-filter: blur(5px); }
 .modal form { padding: 22px; }
@@ -155,6 +161,10 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
   .weapon-rack { bottom: calc(150px + env(safe-area-inset-bottom)); }
   .weapon-slot { min-width: 78px; }
   .weapon-slot kbd { display: none; }
+}
+
+@media (orientation: portrait) {
+  .orientation-gate { display: grid; }
 }
 
 @media (max-height: 600px) and (orientation: landscape) {
