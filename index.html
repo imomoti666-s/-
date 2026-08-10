@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#121019">
+  <meta name="description" content="小太りなハイエナ盗賊コタローを操る、2Dアクション×ハクスラRPG『ケモスラ』の操作プロトタイプ。">
+  <title>ケモスラ｜操作プロトタイプ</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <canvas id="game" width="1280" height="720" aria-label="ケモスラ ゲーム画面"></canvas>
+
+    <section class="hud" aria-live="polite">
+      <div class="brand-card glass">
+        <p class="eyebrow">2D ACTION × HACK &amp; SLASH</p>
+        <h1>ケモスラ <span>PROTOTYPE</span></h1>
+      </div>
+
+      <div class="status-card glass">
+        <div class="portrait-dot" aria-hidden="true">牙</div>
+        <div class="status-copy">
+          <div class="status-line"><strong>コタロー</strong><span id="hpText">100 / 100</span></div>
+          <div class="bar hp"><i id="hpBar"></i></div>
+          <div class="status-line sub"><span>回避</span><span id="dashText">READY</span></div>
+          <div class="bar dash"><i id="dashBar"></i></div>
+        </div>
+      </div>
+
+      <div class="stage-card glass">
+        <span>訓練場・零番区</span>
+        <strong><b id="killCount">0</b> KILLS</strong>
+      </div>
+
+      <button id="helpButton" class="round-button glass" type="button" aria-label="操作説明を表示">?</button>
+      <button id="loadoutButton" class="loadout-button glass" type="button">装備変更</button>
+
+      <div id="notice" class="notice" aria-live="assertive"></div>
+
+      <div class="weapon-rack glass" aria-label="装備中の武器">
+        <button id="slot0" class="weapon-slot active" type="button" data-slot="0">
+          <small>MAIN 1</small><strong>短剣</strong><kbd>1</kbd>
+        </button>
+        <button id="slot1" class="weapon-slot" type="button" data-slot="1">
+          <small>MAIN 2</small><strong>斧</strong><kbd>2</kbd>
+        </button>
+        <button id="switchWeapon" class="switch-button" type="button" aria-label="武器を切り替える">
+          <span>切替</span><kbd>Q</kbd>
+        </button>
+      </div>
+    </section>
+
+    <section id="bootScreen" class="boot-screen">
+      <div class="boot-card glass">
+        <p class="eyebrow">PLAYABLE PROTOTYPE v0.1</p>
+        <h2>盗んで、斬って、<br><em>全部いただく。</em></h2>
+        <p>コタローの重心と武器の手応えを試すための訓練場だ。敵と地形は開発用の図形で表示される。</p>
+        <button id="startButton" class="primary-button" type="button">訓練を始める</button>
+        <span id="assetStatus">コタローを準備中…</span>
+      </div>
+    </section>
+
+    <dialog id="helpDialog" class="modal glass">
+      <form method="dialog">
+        <header><div><p class="eyebrow">CONTROLS</p><h2>操作方法</h2></div><button class="close-button" value="close" aria-label="閉じる">×</button></header>
+        <div class="control-grid">
+          <div><kbd>A</kbd><kbd>D</kbd><span>移動</span></div>
+          <div><kbd>SPACE</kbd><span>ジャンプ</span></div>
+          <div><kbd>J</kbd><span>攻撃／長押し</span></div>
+          <div><kbd>SHIFT</kbd><span>回避</span></div>
+          <div><kbd>Q</kbd><span>武器切替</span></div>
+          <div><kbd>1</kbd><kbd>2</kbd><span>直接選択</span></div>
+        </div>
+        <p class="modal-note">弓は攻撃を長押しして溜め、離すと射る。画面下のボタンからスマホでも操作できる。</p>
+      </form>
+    </dialog>
+
+    <dialog id="loadoutDialog" class="modal loadout-modal glass">
+      <form method="dialog">
+        <header><div><p class="eyebrow">LOADOUT</p><h2>二本を選ぶ</h2></div><button class="close-button" value="close" aria-label="閉じる">×</button></header>
+        <div class="loadout-grid">
+          <fieldset data-loadout-slot="0"><legend>MAIN 1</legend></fieldset>
+          <fieldset data-loadout-slot="1"><legend>MAIN 2</legend></fieldset>
+        </div>
+        <button id="applyLoadout" class="primary-button" value="close">この装備で戻る</button>
+      </form>
+    </dialog>
+
+    <nav class="touch-controls" aria-label="タッチ操作">
+      <div class="touch-move">
+        <button id="leftButton" type="button" aria-label="左へ移動">◀</button>
+        <button id="rightButton" type="button" aria-label="右へ移動">▶</button>
+      </div>
+      <div class="touch-actions">
+        <button id="switchButtonTouch" class="small" type="button">切替</button>
+        <button id="dashButton" class="small" type="button">回避</button>
+        <button id="jumpButton" type="button">跳</button>
+        <button id="attackButton" class="attack" type="button">攻</button>
+      </div>
+    </nav>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
