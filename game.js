@@ -524,7 +524,9 @@
 
   function drawLimb(rect, x, y, length, thickness, angle, far = false) {
     drawPart(images.body, rect, x, y, length, thickness, angle, .08, .5, far ? .76 : 1);
-    return { x: x + Math.cos(angle) * length * .88, y: y + Math.sin(angle) * length * .88 };
+    // The generated pieces include transparent joint padding. A deliberately
+    // shorter bone interval lets adjacent textures overlap and hides paper-doll seams.
+    return { x: x + Math.cos(angle) * length * .72, y: y + Math.sin(angle) * length * .72 };
   }
 
   function attackPose() {
@@ -574,16 +576,16 @@
 
     // Tail: three delayed segments make the heavy body feel balanced rather than pasted down.
     const tailA = player.tailRot + Math.sin(phase * .45) * .035 * speed;
-    drawPart(images.body, BODY.tailBase, -32, -119, 105, 48, tailA, .94, .5, .9);
-    drawPart(images.body, BODY.tailMid, -116, -117, 82, 41, tailA * 1.35 + .05, .95, .5, .86);
-    drawPart(images.body, BODY.tailTip, -181, -111, 62, 36, tailA * 1.7 + .1, .95, .5, .82);
+    drawPart(images.body, BODY.tailBase, -23, -119, 126, 53, tailA, .9, .5, .9);
+    drawPart(images.body, BODY.tailMid, -105, -117, 101, 46, tailA * 1.35 + .05, .9, .5, .86);
+    drawPart(images.body, BODY.tailTip, -169, -111, 79, 40, tailA * 1.7 + .1, .9, .5, .82);
 
     // Far leg.
-    const hipFar = { x: -20, y: -102 };
+    const hipFar = { x: -17, y: -98 };
     const farThighAngle = air ? -.3 : -stride;
-    const kneeFar = drawLimb(BODY.thighFar, hipFar.x, hipFar.y, 62, 78, Math.PI / 2 + farThighAngle, true);
-    const ankleFar = drawLimb(BODY.shinFar, kneeFar.x, kneeFar.y, 50, 60, Math.PI / 2 + (air ? -.5 : stride * .7), true);
-    drawPart(images.body, BODY.footFar, ankleFar.x + 8, ankleFar.y, 58, 38, air ? -.25 : 0, .35, .6, .76);
+    const kneeFar = drawLimb(BODY.thighFar, hipFar.x, hipFar.y, 70, 86, Math.PI / 2 + farThighAngle, true);
+    const ankleFar = drawLimb(BODY.shinFar, kneeFar.x, kneeFar.y, 58, 68, Math.PI / 2 + (air ? -.5 : stride * .7), true);
+    drawPart(images.body, BODY.footFar, ankleFar.x + 8, ankleFar.y, 64, 42, air ? -.25 : 0, .35, .6, .76);
 
     // Inactive weapon sits behind the body and remains visible during switching.
     drawInactiveWeapon(selectedLoadout[1 - activeSlot]);
@@ -605,11 +607,11 @@
     ctx.restore();
 
     // Near leg, intentionally not phase-locked to the torso bob.
-    const hipNear = { x: 18, y: -103 };
+    const hipNear = { x: 17, y: -98 };
     const nearThighAngle = air ? .46 : stride;
-    const kneeNear = drawLimb(BODY.thighNear, hipNear.x, hipNear.y, 64, 80, Math.PI / 2 + nearThighAngle);
-    const ankleNear = drawLimb(BODY.shinNear, kneeNear.x, kneeNear.y, 51, 62, Math.PI / 2 + (air ? -.28 : -stride * .7));
-    drawPart(images.body, BODY.footNear, ankleNear.x + 9, ankleNear.y, 61, 39, air ? .12 : 0, .35, .6);
+    const kneeNear = drawLimb(BODY.thighNear, hipNear.x, hipNear.y, 72, 88, Math.PI / 2 + nearThighAngle);
+    const ankleNear = drawLimb(BODY.shinNear, kneeNear.x, kneeNear.y, 59, 70, Math.PI / 2 + (air ? -.28 : -stride * .7));
+    drawPart(images.body, BODY.footNear, ankleNear.x + 9, ankleNear.y, 66, 43, air ? .12 : 0, .35, .6);
 
     // Near arm and held weapon.
     const shoulderNear = { x: 17, y: -190 };
