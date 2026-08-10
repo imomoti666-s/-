@@ -7,8 +7,8 @@
   <meta name="screen-orientation" content="landscape">
   <meta name="description" content="小太りなハイエナ盗賊コタローを操る、2Dアクション×ハクスラRPG『ケモスラ』の操作プロトタイプ。">
   <title>ケモスラ｜操作プロトタイプ</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260810f">
-  <link rel="stylesheet" href="styles.css?v=20260810f">
+  <link rel="manifest" href="manifest.webmanifest?v=20260810g">
+  <link rel="stylesheet" href="styles.css?v=20260810g">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -55,9 +55,9 @@
 
     <section id="bootScreen" class="boot-screen">
       <div class="boot-card glass">
-        <p class="eyebrow">PLAYABLE PROTOTYPE v0.5</p>
+        <p class="eyebrow">PLAYABLE PROTOTYPE v0.6</p>
         <h2>盗んで、斬って、<br><em>全部いただく。</em></h2>
-        <p>全身スプライトで一体化したコタローと、回転・跳躍を交えた三武器の手応えを試す訓練場だ。敵と地形は開発用の図形で表示される。</p>
+        <p>弱・強攻撃が停止／移動／回避／空中で変化する、三武器24系統の手応えを試す訓練場だ。敵と地形は開発用の図形で表示される。</p>
         <button id="startButton" class="primary-button" type="button">訓練を始める</button>
         <span id="assetStatus">コタローを準備中…</span>
       </div>
@@ -79,12 +79,13 @@
         <div class="control-grid">
           <div><kbd>A</kbd><kbd>D</kbd><span>移動</span></div>
           <div><kbd>SPACE</kbd><span>ジャンプ</span></div>
-          <div><kbd>J</kbd><span>攻撃／長押し</span></div>
+          <div><kbd>J</kbd><span>弱攻撃／弓溜め</span></div>
+          <div><kbd>K</kbd><span>強攻撃／弓強溜め</span></div>
           <div><kbd>SHIFT</kbd><span>回避</span></div>
           <div><kbd>Q</kbd><span>武器切替</span></div>
           <div><kbd>1</kbd><kbd>2</kbd><span>直接選択</span></div>
         </div>
-        <p class="modal-note">弓は攻撃を長押しして溜め、離すと射る。画面下のボタンからスマホでも操作できる。</p>
+        <p class="modal-note">攻撃開始時の「停止・移動・回避・空中」で技が変わる。弓は弱／強を長押しして溜め、離すと射る。</p>
       </form>
     </dialog>
 
@@ -108,10 +109,11 @@
         <button id="switchButtonTouch" class="small" type="button" aria-label="武器を切り替える"><b>換</b><small>武器</small></button>
         <button id="dashButton" class="small" type="button" aria-label="回避する"><b>避</b><small>回避</small></button>
         <button id="jumpButton" type="button" aria-label="ジャンプする"><b>跳</b><small>ジャンプ</small></button>
-        <button id="attackButton" class="attack" type="button" aria-label="攻撃する"><b>攻</b><small>攻撃</small></button>
+        <button id="strongAttackButton" class="strong-attack" type="button" aria-label="強攻撃する"><b>強</b><small>固有技</small></button>
+        <button id="attackButton" class="attack" type="button" aria-label="弱攻撃する"><b>弱</b><small>通常技</small></button>
       </div>
     </nav>
   </main>
-  <script src="game.js?v=20260810f"></script>
+  <script src="game.js?v=20260810g"></script>
 </body>
 </html>

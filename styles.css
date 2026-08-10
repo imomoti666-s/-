@@ -112,7 +112,7 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
 .touch-controls::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 210px; background: linear-gradient(0deg,rgba(9,8,12,.72),rgba(9,8,12,0)); pointer-events: none; }
 .touch-move, .touch-actions { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); pointer-events: none; }
 .touch-move { left: max(16px, env(safe-area-inset-left)); display: flex; gap: 10px; align-items: flex-end; }
-.touch-actions { right: max(16px, env(safe-area-inset-right)); width: 228px; height: 146px; }
+.touch-actions { right: max(16px, env(safe-area-inset-right)); width: 300px; height: 154px; }
 .touch-controls button { position: relative; display: grid; place-content: center; gap: 1px; pointer-events: auto; width: 68px; height: 68px; padding: 0; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; background: rgba(27,22,31,.76); box-shadow: 0 8px 24px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.1); color: rgba(255,255,255,.92); font-size: 22px; font-weight: 900; backdrop-filter: blur(10px); touch-action: none; transition: transform .08s ease, background .08s ease; }
 .touch-controls button b { font-size: 22px; line-height: 1; }
 .touch-controls button small { color: rgba(255,255,255,.68); font-size: 8px; font-weight: 800; letter-spacing: .05em; }
@@ -120,9 +120,11 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
 .touch-actions button { position: absolute; }
 .touch-actions #attackButton { right: 0; bottom: 0; width: 82px; height: 82px; background: rgba(164,57,42,.88); border-color: rgba(255,176,140,.4); }
 .touch-actions #attackButton b { font-size: 27px; }
-.touch-actions #jumpButton { right: 91px; bottom: 71px; width: 66px; height: 66px; background: rgba(117,82,45,.8); }
-.touch-actions #dashButton { right: 92px; bottom: 0; width: 58px; height: 58px; }
-.touch-actions #switchButtonTouch { right: 14px; bottom: 91px; width: 52px; height: 52px; background: rgba(83,55,77,.82); }
+.touch-actions #strongAttackButton { right: 88px; bottom: 2px; width: 72px; height: 72px; background: rgba(155,101,37,.9); border-color: rgba(255,218,135,.5); }
+.touch-actions #strongAttackButton b { color: #fff0b8; font-size: 25px; }
+.touch-actions #jumpButton { right: 10px; bottom: 88px; width: 64px; height: 64px; background: rgba(117,82,45,.8); }
+.touch-actions #dashButton { right: 166px; bottom: 6px; width: 58px; height: 58px; }
+.touch-actions #switchButtonTouch { right: 230px; bottom: 8px; width: 52px; height: 52px; background: rgba(83,55,77,.82); }
 
 @media (hover: none), (pointer: coarse), (max-width: 900px), (max-height: 600px) {
   .touch-controls { display: block; }
@@ -153,11 +155,12 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
   .touch-controls::before { height: 190px; }
   .touch-move { left: max(12px, env(safe-area-inset-left)); gap: 7px; bottom: calc(12px + env(safe-area-inset-bottom)); }
   .touch-move button { width: 58px; height: 58px; }
-  .touch-actions { right: max(10px, env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); width: 190px; height: 132px; }
+  .touch-actions { right: max(10px, env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); width: 264px; height: 138px; }
   .touch-actions #attackButton { width: 76px; height: 76px; }
-  .touch-actions #jumpButton { right: 80px; bottom: 66px; width: 60px; height: 60px; }
-  .touch-actions #dashButton { right: 82px; width: 55px; height: 55px; }
-  .touch-actions #switchButtonTouch { right: 13px; bottom: 80px; width: 48px; height: 48px; }
+  .touch-actions #strongAttackButton { right: 80px; width: 66px; height: 66px; }
+  .touch-actions #jumpButton { right: 8px; bottom: 80px; width: 56px; height: 56px; }
+  .touch-actions #dashButton { right: 151px; width: 55px; height: 55px; }
+  .touch-actions #switchButtonTouch { right: 210px; bottom: 5px; width: 48px; height: 48px; }
   .weapon-rack { bottom: calc(150px + env(safe-area-inset-bottom)); }
   .weapon-slot { min-width: 78px; }
   .weapon-slot kbd { display: none; }
@@ -177,11 +180,12 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
   .touch-controls::before { height: 135px; }
   .touch-move { left: max(12px, env(safe-area-inset-left)); bottom: calc(9px + env(safe-area-inset-bottom)); gap: 7px; }
   .touch-move button { width: 72px; height: 72px; }
-  .touch-actions { right: max(12px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); width: 320px; height: 84px; }
+  .touch-actions { right: max(12px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); width: 400px; height: 84px; }
   .touch-actions #attackButton { right: 0; bottom: 0; width: 84px; height: 84px; }
-  .touch-actions #jumpButton { right: 94px; bottom: 6px; width: 72px; height: 72px; }
-  .touch-actions #dashButton { right: 174px; bottom: 9px; width: 66px; height: 66px; }
-  .touch-actions #switchButtonTouch { right: 250px; bottom: 12px; width: 60px; height: 60px; }
+  .touch-actions #strongAttackButton { right: 92px; bottom: 3px; width: 78px; height: 78px; }
+  .touch-actions #jumpButton { right: 180px; bottom: 6px; width: 72px; height: 72px; }
+  .touch-actions #dashButton { right: 260px; bottom: 9px; width: 66px; height: 66px; }
+  .touch-actions #switchButtonTouch { right: 336px; bottom: 12px; width: 60px; height: 60px; }
   .touch-controls button b { font-size: 22px; }
   .touch-controls button small { font-size: 9px; }
   .weapon-rack { bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%) scale(1.08); transform-origin: bottom center; opacity: .96; }
