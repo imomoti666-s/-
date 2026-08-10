@@ -25,7 +25,7 @@ button { font: inherit; color: inherit; }
   overflow: hidden; isolation: isolate; background: #111019;
 }
 
-#game { width: 100%; height: 100%; display: block; object-fit: cover; }
+#game { width: 100%; height: 100%; display: block; }
 
 .hud { position: absolute; inset: 0; pointer-events: none; }
 .glass {
@@ -158,18 +158,22 @@ kbd { display: inline-grid; min-width: 21px; height: 20px; padding: 0 5px; place
 }
 
 @media (max-height: 600px) and (orientation: landscape) {
-  .brand-card, .status-card, .stage-card { top: 10px; }
-  .round-button, .loadout-button { top: 66px; }
-  .touch-controls::before { height: 105px; }
+  .brand-card, .status-card, .stage-card { top: 8px; }
+  .brand-card { transform: scale(1.08); transform-origin: top left; }
+  .status-card { transform: translateX(-50%) scale(1.08); transform-origin: top center; }
+  .stage-card { transform: scale(1.08); transform-origin: top right; }
+  .round-button { top: 70px; width: 40px; height: 40px; }
+  .loadout-button { top: 70px; height: 40px; padding-inline: 16px; font-size: 12px; }
+  .touch-controls::before { height: 135px; }
   .touch-move { left: max(12px, env(safe-area-inset-left)); bottom: calc(9px + env(safe-area-inset-bottom)); gap: 7px; }
-  .touch-move button { width: 56px; height: 56px; }
-  .touch-actions { right: max(12px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); width: 244px; height: 66px; }
-  .touch-actions #attackButton { right: 0; bottom: 0; width: 66px; height: 66px; }
-  .touch-actions #jumpButton { right: 74px; bottom: 3px; width: 58px; height: 58px; }
-  .touch-actions #dashButton { right: 140px; bottom: 5px; width: 54px; height: 54px; }
-  .touch-actions #switchButtonTouch { right: 202px; bottom: 7px; width: 50px; height: 50px; }
-  .touch-controls button b { font-size: 19px; }
-  .touch-controls button small { font-size: 7px; }
-  .weapon-rack { bottom: calc(9px + env(safe-area-inset-bottom)); opacity: .92; }
-  .weapon-slot { min-width: 82px; padding: 5px 24px 5px 8px; }
+  .touch-move button { width: 72px; height: 72px; }
+  .touch-actions { right: max(12px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); width: 320px; height: 84px; }
+  .touch-actions #attackButton { right: 0; bottom: 0; width: 84px; height: 84px; }
+  .touch-actions #jumpButton { right: 94px; bottom: 6px; width: 72px; height: 72px; }
+  .touch-actions #dashButton { right: 174px; bottom: 9px; width: 66px; height: 66px; }
+  .touch-actions #switchButtonTouch { right: 250px; bottom: 12px; width: 60px; height: 60px; }
+  .touch-controls button b { font-size: 22px; }
+  .touch-controls button small { font-size: 9px; }
+  .weapon-rack { bottom: calc(96px + env(safe-area-inset-bottom)); transform: translateX(-50%) scale(1.08); transform-origin: bottom center; opacity: .96; }
+  .weapon-slot { min-width: 92px; padding: 6px 25px 6px 9px; }
 }
